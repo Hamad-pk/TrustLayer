@@ -1,3 +1,5 @@
+ ![CI](https://github.com/Hamad-pk/trustlayer/actions/workflows/ci.yml/badge.svg)
+
 # TrustLayer
 
 Milestone-based ETH escrow for a client and a freelancer, with two nominated arbiters and deterministic timeout rules.
@@ -52,7 +54,7 @@ Sepolia: see the comments in `script/Deploy.s.sol` and `.env.example`.
 |---|---|
 | 0 Specification | done (`docs/`) |
 | 1 to 3 Contract and tests | done: see `TESTING.md` |
-| 4 CI and deployment scripts | written; the CI workflow has not yet run on GitHub, and nothing is deployed |
+| 4 CI and deployment scripts | written |
 | 5 to 7 Frontend, testnet demo, video | not started |
 
 ## Known limitations
