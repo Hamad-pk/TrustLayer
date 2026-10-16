@@ -1,0 +1,30 @@
+[profile.default]
+src = "src"
+out = "out"
+libs = ["lib"]
+solc_version = "0.8.28"
+evm_version = "cancun"
+optimizer = true
+optimizer_runs = 200
+remappings = ["@openzeppelin/contracts/=lib/openzeppelin-contracts/contracts/"]
+ignored_error_codes = [5159]
+
+[fuzz]
+runs = 512
+
+[invariant]
+runs = 256
+depth = 100
+fail_on_revert = false
+
+[profile.ci.fuzz]
+runs = 2000
+
+[profile.ci.invariant]
+runs = 512
+depth = 150
+
+[lint]
+# Casts are bounded by construction: uint40 timestamps (valid until year 36812), uint8 indices (max 20),
+# uint128 amounts (total checked against uint128 max at creation). See docs/storage-design.md.
+exclude_lints = ["unsafe-typecast", "environment-read-across-mutation"]

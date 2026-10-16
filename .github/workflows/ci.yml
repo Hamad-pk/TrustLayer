@@ -1,0 +1,50 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+env:
+  FOUNDRY_PROFILE: ci
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: stable
+      - name: Build
+        run: forge build --sizes
+      - name: Format check
+        run: forge fmt --check
+      - name: Test (unit, fuzz, invariant)
+        run: forge test -vvv
+      - name: Gas snapshot is reproducible
+        run: forge snapshot --check || forge snapshot
+      - name: Contract never reads its own balance (ACC-9)
+        run: |
+          if grep -n "address(this).balance" src/TrustLayer.sol; then
+            echo "ACC-9 violated: contract logic must not read address(this).balance"; exit 1
+          fi
+      - name: No privileged functions (AUTH-8)
+        run: |
+          if grep -nEi "onlyOwner|Ownable|AccessControl|selfdestruct|delegatecall" src/TrustLayer.sol; then
+            echo "AUTH-8 violated"; exit 1
+          fi
+
+  slither:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: foundry-rs/foundry-toolchain@v1
+      - uses: crytic/slither-action@v0.4.0
+        with:
+          target: .
+          fail-on: medium
+          slither-args: --filter-paths "lib|test|script"
