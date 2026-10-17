@@ -1,6 +1,7 @@
 import { useAccount, useConnect, useDisconnect, useReadContract } from 'wagmi'
 import { sepolia } from 'wagmi/chains'
 import { trustLayerAbi, trustLayerAddress } from './generated'
+import CreateAgreement from './components/CreateAgreement'
 
 export default function App() {
   const { address, isConnected } = useAccount()
@@ -48,6 +49,7 @@ export default function App() {
           {isLoading ? 'Loading…' : error ? 'Could not read the contract' : String(count)}
         </div>
       </section>
+      {isConnected && <CreateAgreement />}
     </main>
   )
 }
