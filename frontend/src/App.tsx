@@ -1,55 +1,47 @@
-import { useAccount, useConnect, useDisconnect, useReadContract } from 'wagmi'
-import { sepolia } from 'wagmi/chains'
-import { trustLayerAbi, trustLayerAddress } from './generated'
-import CreateAgreement from './components/CreateAgreement'
+import { Route, Routes } from 'react-router-dom'
+import { motion } from 'framer-motion'
+import AgreementPage from './components/AgreementPage'
+import Home from './components/Home'
+import Navbar from './components/Navbar'
 
 export default function App() {
-  const { address, isConnected } = useAccount()
-  const { connectors, connect } = useConnect()
-  const { disconnect } = useDisconnect()
-
-  const { data: count, isLoading, error } = useReadContract({
-    address: trustLayerAddress[sepolia.id],
-    abi: trustLayerAbi,
-    functionName: 'agreementCount',
-    chainId: sepolia.id,
-  })
-
   return (
-    <main className="mx-auto max-w-2xl p-6">
-      <h1 className="text-2xl font-semibold">TrustLayer</h1>
-      <p className="mt-1 text-sm text-gray-500">Milestone escrow on Sepolia</p>
+    <div className="min-h-screen bg-[#070b18] text-slate-100 selection:bg-cyan-500/30">
+      {/* ambient background */}
+      <div className="pointer-events-none fixed inset-0 -z-10">
+        <div className="absolute inset-0 bg-[#070b18]" />
+        <div className="absolute inset-0 bg-grid opacity-[0.5]" />
+        <div className="absolute inset-0 bg-glow" />
+        <motion.div
+          className="absolute -top-32 left-1/2 h-[700px] w-[900px] -translate-x-1/2 rounded-full opacity-20 blur-[120px]"
+          style={{ background: 'radial-gradient(ellipse at center, #22d3ee 0%, transparent 60%)' }}
+          animate={{ scale: [1, 1.05, 1], opacity: [0.15, 0.22, 0.15] }}
+          transition={{ duration: 8, repeat: Infinity, ease: 'easeInOut' }}
+        />
+      </div>
 
-      <section className="mt-6 rounded-lg border p-4">
-        {isConnected ? (
-          <div className="flex items-center justify-between gap-4">
-            <span className="font-mono text-sm break-all">{address}</span>
-            <button className="rounded bg-gray-200 px-3 py-1 text-sm" onClick={() => disconnect()}>
-              Disconnect
-            </button>
-          </div>
-        ) : (
-          <div className="flex gap-2">
-            {connectors.map((c) => (
-              <button
-                key={c.uid}
-                className="rounded bg-black px-3 py-1 text-sm text-white"
-                onClick={() => connect({ connector: c })}
-              >
-                Connect {c.name}
-              </button>
-            ))}
-          </div>
-        )}
-      </section>
+      <Navbar />
 
-      <section className="mt-4 rounded-lg border p-4 text-sm">
-        <div className="text-gray-500">Agreements created on-chain</div>
-        <div className="mt-1 text-xl">
-          {isLoading ? 'Loading…' : error ? 'Could not read the contract' : String(count)}
+      <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-10">
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/agreement/:id" element={<AgreementPage />} />
+        </Routes>
+      </main>
+
+      <footer className="border-t border-white/5 py-8">
+        <div className="mx-auto flex max-w-6xl flex-col gap-3 px-4 text-xs leading-relaxed text-white/40 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+          <div>
+            TrustLayer • Milestone escrow •{' '}
+            <a href="https://sepolia.etherscan.io/address/0x6A348ebd89B3C8fB63E1CcAb4f2F84DB360f9299#code" target="_blank" rel="noreferrer" className="underline decoration-white/20 underline-offset-4 hover:text-white/70">
+              0x6A34…9299 on Sepolia
+            </a>{' '}
+            • Verified • No admin • No upgrade path
+          </div>
+          <div className="font-mono text-[11px] tracking-wide text-white/30">POLICY v1 • EVM Cancun • Solidity 0.8.28</div>
         </div>
-      </section>
-      {isConnected && <CreateAgreement />}
-    </main>
+      </footer>
+    </div>
   )
 }
+

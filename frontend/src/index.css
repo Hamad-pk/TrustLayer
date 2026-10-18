@@ -1,1 +1,59 @@
 @import "tailwindcss";
+
+@theme {
+  --font-display: "Space Grotesk", system-ui, sans-serif;
+  --font-body: "Inter", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+  --color-bg: #070b18;
+  --color-surface: #0f172a;
+  --color-surface-2: #141e36;
+  --color-border: #1e2d4a;
+  --color-accent: #22d3ee;
+  --color-accent-2: #8b5cf6;
+}
+
+* { scrollbar-width: thin; scrollbar-color: #334155 transparent; }
+*::-webkit-scrollbar { width: 6px; height: 6px; }
+*::-webkit-scrollbar-thumb { background: #334155; border-radius: 9999px; }
+
+html { scroll-behavior: smooth; }
+body {
+  font-family: var(--font-body);
+  background: var(--color-bg);
+  color: #e2e8f0;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+::selection { background: rgba(34,211,238,0.3); }
+
+/* animated grid bg */
+.bg-grid {
+  background-image:
+    linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+.bg-glow {
+  background:
+    radial-gradient(600px 400px at 20% 0%, rgba(34,211,238,0.14), transparent 60%),
+    radial-gradient(700px 500px at 85% 10%, rgba(139,92,246,0.14), transparent 60%),
+    radial-gradient(900px 600px at 50% 100%, rgba(14,165,233,0.08), transparent 70%);
+}
+.glass {
+  backdrop-filter: blur(16px) saturate(1.2);
+  -webkit-backdrop-filter: blur(16px) saturate(1.2);
+}
+.shimmer {
+  position: relative; overflow: hidden;
+}
+.shimmer::after {
+  content:""; position:absolute; inset:0;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.07), transparent);
+  transform: translateX(-100%); animation: shimmer 2.8s infinite;
+}
+@keyframes shimmer { 100% { transform: translateX(100%); } }
+
+/* focus ring */
+*:focus-visible { outline: 2px solid #22d3ee; outline-offset: 2px; }
+
