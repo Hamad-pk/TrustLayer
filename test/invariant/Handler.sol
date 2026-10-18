@@ -39,6 +39,7 @@ contract Handler is Test {
     bool public isolationBroken; // ACC-8
     bool public withdrawalLeftCredit; // ACC-7
     bool public arbiterGotMoney; // SAFE-9
+    bool public disputeFundsMoved; // SAFE-6b: a disputed milestone's funds moved other than by a ruling or the default split
 
     // ---- coverage counters (printed after the run)
     mapping(bytes32 => uint256) public hits;
@@ -232,6 +233,14 @@ contract Handler is Test {
                 this.expire(seed);
             }
         } else {
+            // Disputed: first try to move the disputed funds through every path that must be closed
+            if (extra % 2 == 0) {
+                this.approve(seed);
+                this.requestRevision(seed);
+                this.submit(seed);
+                this.expire(seed);
+                this.freelancerDispute(seed);
+            }
             // Disputed
             if (r < 4) {
                 this.resolve(seed, extra);
@@ -357,6 +366,17 @@ contract Handler is Test {
         if (a.currentIndex < before.currentIndex) indexRegressed = true;
         // SAFE-4: endIndex never increases
         if (a.endIndex > before.endIndex) endIndexIncreased = true;
+        // SAFE-6b: while a milestone is Disputed, its funds can only leave through resolve() or defaultSplit().
+        if (before.status == TrustLayer.Status.Active && before.phase == TrustLayer.Phase.Disputed) {
+            if (a.currentIndex > before.currentIndex) {
+                // the milestone settled: only a ruling or the default split may do that
+                if (tag != "resolve" && tag != "defaultSplit") disputeFundsMoved = true;
+            } else {
+                // still disputed: the amount stays locked and the freelancer gains nothing
+                if (a.locked < tl.milestoneAmount(id, a.currentIndex)) disputeFundsMoved = true;
+                if (a.freelancerCredit > before.freelancerCredit) disputeFundsMoved = true;
+            }
+        }
         // ACC-8: nothing else changed
         if (_isolation(id) != iso) isolationBroken = true;
 

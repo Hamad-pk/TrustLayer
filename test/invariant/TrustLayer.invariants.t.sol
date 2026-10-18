@@ -111,6 +111,11 @@ contract TrustLayerInvariants is Test {
         }
     }
 
+    /// SAFE-6b: funds cannot leave a milestone while it is disputed, except through a ruling or the default split.
+    function invariant_SAFE6b_disputedFundsStayFrozen() public view {
+        assertFalse(h.disputeFundsMoved(), "SAFE-6b");
+    }
+
     /// ACC-7: a successful withdrawal always zeroes the caller's credit.
     /// ACC-8: acting on one agreement never changes another.
     function invariant_ACC7_ACC8_withdrawalAndIsolation() public view {
