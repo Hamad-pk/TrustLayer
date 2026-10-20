@@ -3,10 +3,12 @@ import type { Hex } from 'viem'
 import { useConfig, useWriteContract } from 'wagmi'
 import { waitForTransactionReceipt } from 'wagmi/actions'
 import { describeError } from './errors'
+import { pushToast } from '../components/TxToaster'
 
 /**
  * Runs one write: simulate first (so reverts surface as readable errors and cost nothing),
  * then ask the wallet, then wait for the receipt, then call onDone.
+ * Pushes a toast on success (with short hash in detail) and on failure.
  */
 export function useTx(onDone: () => void) {
   const config = useConfig()
@@ -26,9 +28,12 @@ export function useTx(onDone: () => void) {
       setPending(`${label}: waiting for confirmation…`)
       const receipt = await waitForTransactionReceipt(config, { hash })
       if (receipt.status !== 'success') throw new Error('The transaction failed on-chain.')
+      pushToast({ title: `${label} confirmed`, href: `https://sepolia.etherscan.io/tx/${hash}`, tone: 'success' })
       onDone()
     } catch (e) {
-      setError(describeError(e))
+      const msg = describeError(e)
+      setError(msg)
+      pushToast({ title: `${label} failed`, detail: msg, tone: 'error' })
     } finally {
       setPending(null)
     }

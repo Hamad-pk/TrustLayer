@@ -1,117 +1,202 @@
 import { useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { formatEther, type Address } from 'viem'
-import { useAccount, useConfig, useReadContract, useReadContracts, useSwitchChain } from 'wagmi'
+import { useAccount, useConfig, useConnect, useReadContract, useReadContracts, useSwitchChain } from 'wagmi'
 import { simulateContract } from 'wagmi/actions'
 import { sepolia } from 'wagmi/chains'
+import { ArrowLeft, Check, ExternalLink, ShieldCheck, ShieldAlert } from 'lucide-react'
 import { trustLayerAbi, trustLayerAddress } from '../generated'
 import { loadSavedTerms, saveTerms, verifyTermsDocument } from '../lib/terms'
 import { useTx } from '../lib/useTx'
+import { fmtDeadline, shortAddr } from '../lib/format'
+import { cn } from '../lib/cn'
 import WorkPanel from './WorkPanel'
-import { Card, Button, Pill, Textarea } from './ui'
-import { ExternalLink, ShieldCheck, Copy, Check, Clock3, AlertTriangle, ArrowLeft } from 'lucide-react'
-const STATUS=['None','Proposed','Active','Completed','Cancelled']
-const PHASE=['Working','Submitted','Revision','Disputed']
-const MILESTONE=['Pending','Working','Submitted','Revision','Disputed','Settled','Voided']
-const contract=trustLayerAddress[sepolia.id]
-const short=(a:string)=>`${a.slice(0,6)}…${a.slice(-4)}`
-const when=(s:number)=> s? new Date(s*1000).toLocaleString():'—'
-export default function AgreementPage(){
- const { id: idParam }=useParams()
- const config=useConfig()
- const { address, chainId }=useAccount()
- const { mutate: switchChain }=useSwitchChain()
- let id:bigint|null=null
- try{ id=idParam && /^\d+$/.test(idParam)? BigInt(idParam):null }catch{ id=null }
- const { data:a, error, refetch }=useReadContract({ address:contract, abi:trustLayerAbi, functionName:'getAgreement', args:[id??0n], chainId:sepolia.id, query:{ enabled:id!==null, refetchInterval:10000 }})
- const { data:amounts }=useReadContract({ address:contract, abi:trustLayerAbi, functionName:'getMilestoneAmounts', args:[id??0n], chainId:sepolia.id, query:{ enabled:id!==null }})
- const { data:statuses }=useReadContracts({ contracts:(amounts??[]).map((_,i)=>({ address:contract, abi:trustLayerAbi, functionName:'milestoneStatus' as const, args:[id??0n, BigInt(i)] as const, chainId:sepolia.id })), query:{ enabled:id!==null && !!amounts, refetchInterval:10000 }})
- const [docText,setDocText]=useState(()=>(id!==null? loadSavedTerms(sepolia.id,id):''))
- const [copied,setCopied]=useState<string|null>(null)
- const verification=useMemo(()=>{ if(!a || id===null || !docText.trim()) return null; return verifyTermsDocument(docText,{chainId:sepolia.id, contract, id, termsHash:a.termsHash})},[a,id,docText])
- const tx=useTx(()=>{void refetch()})
- if(id===null) return <p className="mt-6 text-sm text-white/60">Invalid agreement number.</p>
- if(error) return <p className="mt-6 text-sm text-red-300">Could not read #{idParam}. May not exist.</p>
- if(!a) return <p className="mt-6 text-sm text-white/60">Loading #{idParam}…</p>
- const me=address?.toLowerCase()
- const is=(x:Address)=> !!me && x.toLowerCase()===me
- const isClient=is(a.client), isFreelancer=is(a.freelancer), isPrimary=is(a.primaryArbiter), isFallback=is(a.fallbackArbiter)
- const isParticipant=isClient||isFreelancer||isPrimary||isFallback
- const allAccepted=a.freelancerAccepted && a.primaryAccepted && a.fallbackAccepted
- const wrongChain=chainId!==sepolia.id
- const proposed=a.status===1
- const termsOk=verification?.ok===true
- const sim=(fn:'acceptAsFreelancer'|'acceptAsArbiter')=>()=>simulateContract(config,{abi:trustLayerAbi,address:contract,functionName:fn,args:[id!, a.termsHash] as const,chainId:sepolia.id,account:address})
- const copy=async(v:string,k:string)=>{await navigator.clipboard.writeText(v); setCopied(k); setTimeout(()=>setCopied(null),1200)}
- return (
- <div className="space-y-6">
- <Link to="/" className="inline-flex items-center gap-1.5 text-sm text-white/60 hover:text-white"><ArrowLeft className="h-4 w-4"/> Back</Link>
- {wrongChain && <Card className="p-4 flex items-center justify-between border-amber-500/20 bg-amber-500/10"><span className="text-sm text-amber-200 flex items-center gap-2"><AlertTriangle className="h-4 w-4"/> Wrong network</span><Button size="sm" variant="subtle" onClick={()=>switchChain({chainId:sepolia.id})}>Switch to Sepolia</Button></Card>}
- <div className="flex flex-wrap items-center gap-2">
- <span className="font-display text-2xl font-bold text-white">Agreement #{id.toString()}</span>
- <Pill className="bg-white text-slate-900">{STATUS[a.status]??'—'}</Pill>
- {a.status===2 && <Pill className="text-white/70">{PHASE[a.phase]??'—'} · {a.currentIndex+1}/{a.endIndex+1}</Pill>}
- <a href={`https://sepolia.etherscan.io/address/${contract}#readContract`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-xs text-cyan-300">Etherscan <ExternalLink className="h-3 w-3"/></a>
- </div>
- <div className="grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
- <Card className="p-5 sm:p-6">
- <div className="text-xs font-semibold tracking-widest uppercase text-white/40">Overview</div>
- <div className="mt-3 space-y-2 text-sm">
- <div className="flex justify-between gap-4 border-b border-white/10 py-2"><span className="text-white/40">Total</span><span className="font-mono font-semibold text-white">{formatEther(a.total)} ETH</span></div>
- <div className="flex justify-between gap-4 border-b border-white/10 py-2"><span className="text-white/40">Locked</span><span className="font-mono text-white">{formatEther(a.locked)} ETH</span></div>
- <div className="flex justify-between gap-4 py-2"><span className="text-white/40">Deadline</span><span className="flex items-center gap-1.5 text-white"><Clock3 className="h-3.5 w-3.5 text-white/40"/>{when(a.phaseDeadline)}</span></div>
- </div>
- <div className="mt-5 grid grid-cols-2 gap-2 text-xs">
- <Addr label="Client" value={a.client} onCopy={()=>copy(a.client,'c')} copied={copied==='c'} />
- <Addr label="Freelancer" value={a.freelancer} onCopy={()=>copy(a.freelancer,'f')} copied={copied==='f'} />
- <Addr label="Primary" value={a.primaryArbiter} onCopy={()=>copy(a.primaryArbiter,'p')} copied={copied==='p'} />
- <Addr label="Fallback" value={a.fallbackArbiter} onCopy={()=>copy(a.fallbackArbiter,'fb')} copied={copied==='fb'} />
- </div>
- <div className="mt-4 rounded-xl border border-white/10 bg-black/20 p-3">
- <div className="flex items-center justify-between text-xs"><span className="text-white/40">Terms hash</span><button onClick={()=>copy(a.termsHash,'h')} className="inline-flex items-center gap-1 text-white/60 hover:text-white">{copied==='h'?<Check className="h-3 w-3"/>:<Copy className="h-3 w-3"/>} copy</button></div>
- <div className="mt-1 break-all font-mono text-xs text-white/70">{a.termsHash}</div>
- </div>
- </Card>
- <Card className="p-5 sm:p-6">
- <div className="text-xs font-semibold tracking-widest uppercase text-white/40">Milestones</div>
- {amounts ? amounts.map((amt,i)=>(
- <div key={i} className={`mt-3 flex items-center justify-between rounded-xl border px-3 py-2 text-sm ${a.currentIndex===i && a.status===2?'border-cyan-400/30 bg-cyan-500/10':'border-white/10 bg-white/[0.03]'}`}>
- <div><div className="font-medium text-white">#{i+1} · {formatEther(amt)} ETH</div><div className="text-xs text-white/50">{MILESTONE[Number(statuses?.[i]?.result ?? 0)]}</div></div>
- {a.currentIndex===i && a.status===2 && <Pill className="bg-cyan-500/20 text-cyan-200 border-cyan-400/20">Current</Pill>}
- </div>
- )): <p className="mt-3 text-sm text-white/40">Loading…</p>}
- <div className="mt-5">
- <div className="text-xs font-semibold tracking-widest uppercase text-white/40">Terms</div>
- <Textarea rows={6} value={docText} onChange={e=>setDocText(e.target.value)} placeholder="Paste terms…" className="mt-2 font-mono text-xs"/>
- <div className="mt-2 flex gap-2"><Button size="sm" variant="subtle" onClick={()=>{ if(id!==null) saveTerms(sepolia.id,id,docText)}}>Save</Button><Button size="sm" variant="ghost" onClick={()=>setDocText('')}>Clear</Button></div>
- {verification && (verification.ok ? <div className="mt-2 flex items-center gap-1.5 rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-2 text-xs text-emerald-200"><ShieldCheck className="h-4 w-4"/> Verified.</div> : <div className="mt-2 rounded-xl border border-red-500/20 bg-red-500/10 p-2 text-xs text-red-200">{verification.problems.join(' ')}</div>)}
- </div>
- </Card>
- </div>
- <Card className="p-5 sm:p-6">
- <div className="text-sm font-semibold text-white">Actions</div>
- {!address && <p className="mt-2 text-sm text-white/50">Connect wallet.</p>}
- {address && !isParticipant && <p className="mt-2 text-sm text-white/50">Not a participant.</p>}
- {address && !wrongChain && isParticipant && proposed && (
- <div className="mt-3 flex flex-wrap gap-2">
- {!a.freelancerAccepted && isFreelancer && <Button size="sm" disabled={!termsOk||!!tx.pending} onClick={()=>tx.run('Accept', sim('acceptAsFreelancer'))}>Accept as freelancer</Button>}
- {isPrimary && !a.primaryAccepted && <Button size="sm" disabled={!termsOk||!!tx.pending} onClick={()=>tx.run('Accept', sim('acceptAsArbiter'))}>Accept as primary</Button>}
- {isFallback && !a.fallbackAccepted && <Button size="sm" disabled={!termsOk||!!tx.pending} onClick={()=>tx.run('Accept', sim('acceptAsArbiter'))}>Accept as fallback</Button>}
- {isClient && <Button size="sm" disabled={!allAccepted||!!tx.pending} onClick={()=>tx.run('Fund', ()=>simulateContract(config,{abi:trustLayerAbi,address:contract,functionName:'fund',args:[id!],value:a.total,chainId:sepolia.id,account:address}))}>Fund {formatEther(a.total)} ETH</Button>}
- {isParticipant && <Button size="sm" variant="ghost" disabled={!!tx.pending} onClick={()=>{ if(window.confirm('Cancel?')) void tx.run('Cancel', ()=>simulateContract(config,{abi:trustLayerAbi,address:contract,functionName:'cancelBeforeFunding',args:[id!],chainId:sepolia.id,account:address}))}}>Cancel</Button>}
- </div>
- )}
- {address && !wrongChain && isParticipant && a.status!==1 && (
- <WorkPanel id={id} account={address} tx={tx} roles={{client:isClient, freelancer:isFreelancer, primary:isPrimary, fallback:isFallback}} currentAmount={amounts?.[a.currentIndex]} state={{ status:a.status, phase:a.phase, currentIndex:a.currentIndex, endIndex:a.endIndex, phaseDeadline:a.phaseDeadline, disputeOpenedAt:a.disputeOpenedAt, clientCredit:a.clientCredit, freelancerCredit:a.freelancerCredit }} />
- )}
- {tx.pending && <p className="mt-3 text-sm text-cyan-300">{tx.pending}</p>}
- {tx.error && <p className="mt-3 rounded-xl bg-red-500/10 border border-red-500/20 p-2 text-sm text-red-200">{tx.error}</p>}
- {tx.lastHash && !tx.pending && !tx.error && <a className="mt-2 block text-xs text-cyan-300 underline" target="_blank" rel="noreferrer" href={`https://sepolia.etherscan.io/tx/${tx.lastHash}`}>View tx</a>}
- </Card>
- </div>
- )
-}
-function Addr({label,value,onCopy,copied}:{label:string; value:string; onCopy:()=>void; copied:boolean}){
- return <div className="rounded-xl border border-white/10 bg-white/[0.03] p-2.5"><div className="text-[11px] tracking-widest uppercase text-white/40">{label}</div><div className="mt-1 flex items-center gap-2"><span className="font-mono text-xs text-white">{short(value)}</span><button onClick={onCopy} className="grid h-6 w-6 place-items-center rounded-lg bg-white/10 text-white/70 hover:bg-white/15">{copied?<Check className="h-3 w-3"/>:<Copy className="h-3 w-3"/>}</button></div></div>
+import { Badge, Button, Card, CopyButton, Skeleton, Textarea, TxProgress } from './ui'
+import { FundsBar, FundsLegend, type Parts } from './FundsBar'
+import { describe, type Ag } from './AgreementRow'
+
+const MILESTONE = ['Pending', 'Working', 'Submitted', 'Revision requested', 'In dispute', 'Settled', 'Voided'] as const
+const c = trustLayerAddress[sepolia.id]
+const eth = (v: bigint) => Number(formatEther(v))
+
+export default function AgreementPage() {
+  const { id: idParam } = useParams()
+  const config = useConfig()
+  const { address, chainId } = useAccount()
+  const { connectors, connect } = useConnect()
+  const { mutate: switchChain } = useSwitchChain()
+  let id: bigint | null = null
+  try { id = idParam && /^\d+$/.test(idParam) ? BigInt(idParam) : null } catch { id = null }
+
+  const { data: a, error, isLoading, refetch } = useReadContract({ address: c, abi: trustLayerAbi, functionName: 'getAgreement', args: [id ?? 0n], chainId: sepolia.id, query: { enabled: id !== null, refetchInterval: 10000 } })
+  const { data: amounts } = useReadContract({ address: c, abi: trustLayerAbi, functionName: 'getMilestoneAmounts', args: [id ?? 0n], chainId: sepolia.id, query: { enabled: id !== null } })
+  const { data: statuses } = useReadContracts({
+    contracts: (amounts ?? []).map((_, i) => ({ address: c, abi: trustLayerAbi, functionName: 'milestoneStatus' as const, args: [id ?? 0n, BigInt(i)] as const, chainId: sepolia.id })),
+    query: { enabled: id !== null && !!amounts, refetchInterval: 8000 },
+  })
+  const [docText, setDocText] = useState(() => (id !== null ? loadSavedTerms(sepolia.id, id) : ''))
+  const [showTerms, setShowTerms] = useState(false)
+  const v = useMemo(() => {
+    if (!a || id === null || !docText.trim()) return null
+    return verifyTermsDocument(docText, { chainId: sepolia.id, contract: c, id, termsHash: a.termsHash })
+  }, [a, id, docText])
+  const tx = useTx(() => { void refetch() })
+
+  if (id === null) return <div className="mx-auto max-w-md py-20 text-center"><h1 className="text-2xl font-semibold">That is not an agreement number</h1><Link to="/agreements" className="mt-6 inline-block"><Button variant="secondary">Browse agreements</Button></Link></div>
+  if (error) return <div className="mx-auto max-w-md py-20 text-center"><h1 className="text-2xl font-semibold">Agreement #{idParam} was not found</h1><p className="mt-2 text-mute">It may not exist yet, or the network could not be reached.</p><Link to="/agreements" className="mt-6 inline-block"><Button variant="secondary">Browse agreements</Button></Link></div>
+  if (isLoading || !a) return <div className="space-y-6"><Skeleton className="h-12 w-72" /><Skeleton className="h-44" /><Skeleton className="h-80" /></div>
+
+  const me = address?.toLowerCase()
+  const is = (x: Address) => !!me && x.toLowerCase() === me
+  const isClient = is(a.client), isFree = is(a.freelancer), isPrim = is(a.primaryArbiter), isFall = is(a.fallbackArbiter)
+  const isPart = isClient || isFree || isPrim || isFall
+  const allOk = a.freelancerAccepted && a.primaryAccepted && a.fallbackAccepted
+  const wrong = chainId !== sepolia.id
+  const termsOk = v?.ok === true
+  const d = describe(a as unknown as Ag)
+  const proposed = a.status === 1
+  const sim = (fn: 'acceptAsFreelancer' | 'acceptAsArbiter') => () =>
+    simulateContract(config, { abi: trustLayerAbi, address: c, functionName: fn, args: [id!, v?.ok ? v.computedHash : a.termsHash] as const, chainId: sepolia.id, account: address })
+
+  // The accounting identity made visible: funded = held + owed + withdrawn
+  const funded = proposed || (a.status === 4 && a.currentIndex === 0) ? 0n : a.total
+  const withdrawn = funded > a.locked + a.clientCredit + a.freelancerCredit ? funded - a.locked - a.clientCredit - a.freelancerCredit : 0n
+  const parts: Parts = { held: eth(a.locked), free: eth(a.freelancerCredit), client: eth(a.clientCredit), withdrawn: eth(withdrawn) }
+
+  const waiting = [!a.freelancerAccepted && 'the freelancer', !a.primaryAccepted && 'the primary arbiter', !a.fallbackAccepted && 'the fallback arbiter'].filter(Boolean) as string[]
+  const summary = proposed ? (allOk ? 'Everyone has accepted. The client can fund it now.' : `Waiting for ${waiting.join(', ')} to accept.`)
+    : a.status === 2 ? `Milestone ${a.currentIndex + 1} of ${a.endIndex + 1}: ${d.sub.split(': ')[1]}.`
+    : a.status === 3 ? 'Every milestone is settled. Anything credited can still be withdrawn.' : 'This agreement ended early. Anything credited can still be withdrawn.'
+  const roleLine = isClient ? 'You are the client' : isFree ? 'You are the freelancer' : isPrim ? 'You are the primary arbiter' : isFall ? 'You are the fallback arbiter' : null
+  const people: { role: string; addr: Address; mine: boolean; ok?: boolean }[] = [
+    { role: 'Client', addr: a.client, mine: isClient },
+    { role: 'Freelancer', addr: a.freelancer, mine: isFree, ok: a.freelancerAccepted },
+    { role: 'Primary arbiter', addr: a.primaryArbiter, mine: isPrim, ok: a.primaryAccepted },
+    { role: 'Fallback arbiter', addr: a.fallbackArbiter, mine: isFall, ok: a.fallbackAccepted },
+  ]
+
+  return (
+    <div>
+      <Link to="/agreements" className="inline-flex items-center gap-1.5 text-sm text-mute transition hover:text-ink"><ArrowLeft className="h-4 w-4" />All agreements</Link>
+      <div className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-2">
+        <h1 className="text-4xl font-semibold sm:text-5xl">Agreement #{id.toString()}</h1>
+        <Badge tone={d.tone}>{d.label}</Badge>
+      </div>
+      <p className="mt-3 max-w-[60ch] text-lg text-mute">{summary}</p>
+      {a.status === 2 && a.phase !== 3 && a.phaseDeadline > 0 && <p className="mt-1 text-sm text-faint">Deadline for this step: {fmtDeadline(Number(a.phaseDeadline))}</p>}
+
+      <div className="mt-10 grid gap-10 lg:grid-cols-[1fr_400px] lg:items-start">
+        <div className="space-y-12">
+          <section>
+            <h2 className="text-xl font-semibold">Where the money is</h2>
+            <Card className="mt-4 p-5 sm:p-6">
+              <div className="flex items-baseline justify-between"><span className="font-display text-4xl font-semibold tabular">{formatEther(a.total)} <span className="text-lg font-normal text-faint">ETH</span></span><span className="text-sm text-mute">{a.count} milestones</span></div>
+              <FundsBar parts={parts} total={eth(funded)} className="mt-5" />
+              <FundsLegend parts={parts} className="mt-5" />
+              <p className="mt-5 border-t border-line-soft pt-4 text-[13px] text-faint">{funded > 0n ? 'These four always add up to the funded total. The contract\u2019s tests check this after every action.' : 'Not funded yet. The full amount is held once the client funds it.'}</p>
+            </Card>
+          </section>
+
+          <section>
+            <h2 className="text-xl font-semibold">Milestones</h2>
+            <ol className="mt-5">
+              {(amounts ?? []).map((amt, i) => {
+                const st = statuses?.[i]?.result as number | undefined
+                const m = v?.ok ? v.doc.milestones[i] : null
+                const node = st === 5 ? 'border-mint bg-mint text-abyss' : st === 4 ? 'border-rose text-rose' : st !== undefined && st >= 1 && st <= 3 ? 'border-ice text-ice ring-4 ring-ice/15' : 'border-line text-faint'
+                return (
+                  <li key={i} className="relative pb-7 pl-12 last:pb-0">
+                    {i < (amounts?.length ?? 0) - 1 && <span className="absolute bottom-0 left-[15px] top-8 w-px bg-line" aria-hidden />}
+                    <span className={cn('absolute left-0 top-0 grid h-8 w-8 place-items-center rounded-full border bg-deep text-sm font-semibold', node)}>{st === 5 ? <Check className="h-4 w-4" /> : i + 1}</span>
+                    <div className="flex flex-wrap items-baseline justify-between gap-x-4">
+                      <span className={cn('font-medium', st === 6 && 'text-faint line-through')}>Milestone {i + 1}</span>
+                      <span className="text-sm text-mute"><span className="tabular text-ink">{formatEther(amt)} ETH</span> · {st !== undefined ? MILESTONE[st] : '…'}</span>
+                    </div>
+                    {m && <div className="mt-2 max-w-prose text-[15px] leading-relaxed"><p>{m.description}</p><p className="mt-1 text-mute">Accepted when: {m.acceptanceCriteria}</p></div>}
+                  </li>
+                )
+              })}
+            </ol>
+            {!v?.ok && <p className="mt-4 text-sm text-faint">Check the terms below to read what each milestone requires.</p>}
+          </section>
+
+          <section>
+            <h2 className="text-xl font-semibold">People</h2>
+            <ul className="mt-4 divide-y divide-line-soft rounded-2xl border border-line bg-deep">
+              {people.map((p) => (
+                <li key={p.role} className="flex items-center justify-between gap-3 px-4 py-3">
+                  <div className="flex items-center gap-2.5"><span className="text-[15px]">{p.role}</span>{p.mine && <Badge tone="accent">You</Badge>}</div>
+                  <div className="flex items-center gap-2">
+                    {proposed && p.ok !== undefined && <Badge tone={p.ok ? 'success' : 'warning'}>{p.ok ? 'Accepted' : 'Not yet'}</Badge>}
+                    <span className="font-mono text-[13px] tabular text-mute">{shortAddr(p.addr)}</span>
+                    <CopyButton value={p.addr} label="Copy address" />
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </section>
+
+          <section>
+            <div className="flex items-center justify-between gap-4">
+              <h2 className="text-xl font-semibold">Check the terms</h2>
+              {!proposed && <Button variant="ghost" size="sm" onClick={() => setShowTerms((s) => !s)}>{showTerms || v ? 'Hide' : 'Show'}</Button>}
+            </div>
+            {(proposed || showTerms || v) && (
+              <div className="mt-4">
+                <p className="max-w-prose text-[15px] text-mute">Paste the terms document you were sent. The app rebuilds the hash from its text and compares it with the one stored on-chain.{proposed && ' Accept only if it matches.'}</p>
+                <Textarea rows={5} value={docText} placeholder="Paste the terms document (JSON)" className="mt-3 font-mono text-xs"
+                  onChange={(e) => { setDocText(e.target.value); if (id !== null) saveTerms(sepolia.id, id, e.target.value) }} />
+                {v && (v.ok
+                  ? <p className="mt-3 flex items-center gap-2 rounded-xl bg-mint/10 px-4 py-3 text-mint"><ShieldCheck className="h-5 w-5" />These terms exactly match what is committed on-chain.</p>
+                  : <p className="mt-3 flex items-start gap-2 rounded-xl bg-rose/10 px-4 py-3 text-rose"><ShieldAlert className="mt-0.5 h-5 w-5 shrink-0" />{v.problems.join(' ')}</p>)}
+                <div className="mt-4 flex items-center gap-2 text-[13px] text-faint"><span>Terms hash</span><span className="truncate font-mono">{a.termsHash}</span><CopyButton value={a.termsHash} label="Copy hash" /></div>
+              </div>
+            )}
+            <a href={`https://sepolia.etherscan.io/address/${c}#code`} target="_blank" rel="noreferrer" className="mt-5 inline-flex items-center gap-1.5 text-sm text-ice hover:underline">Verified contract on Etherscan <ExternalLink className="h-3.5 w-3.5" /></a>
+          </section>
+        </div>
+
+        <aside className="lg:sticky lg:top-24">
+          <Card className="border-line p-5 sm:p-6">
+            <h2 className="text-xl font-semibold">Your move</h2>
+            {roleLine && <p className="mt-1 text-sm text-mute">{roleLine}</p>}
+            <div className="mt-5">
+              {!address && <><p className="text-mute">Connect your wallet to act on this agreement.</p>{connectors[0] && <Button className="mt-4" onClick={() => connect({ connector: connectors[0] })}>Connect wallet</Button>}</>}
+              {address && wrong && <><p className="text-mute">Your wallet is on the wrong network.</p><Button className="mt-4" onClick={() => switchChain({ chainId: sepolia.id })}>Switch to Sepolia</Button></>}
+              {address && !wrong && !isPart && <p className="text-mute">You are not part of this agreement, so you can read it but not act on it.</p>}
+
+              {address && !wrong && isPart && proposed && (
+                <div className="space-y-3">
+                  {isFree && !a.freelancerAccepted && <Button className="w-full" disabled={!termsOk || !!tx.pending} onClick={() => tx.run('Accept', sim('acceptAsFreelancer'))}>Accept as freelancer</Button>}
+                  {isPrim && !a.primaryAccepted && <Button className="w-full" disabled={!termsOk || !!tx.pending} onClick={() => tx.run('Accept', sim('acceptAsArbiter'))}>Accept as primary arbiter</Button>}
+                  {isFall && !a.fallbackAccepted && <Button className="w-full" disabled={!termsOk || !!tx.pending} onClick={() => tx.run('Accept', sim('acceptAsArbiter'))}>Accept as fallback arbiter</Button>}
+                  {(isFree || isPrim || isFall) && !termsOk && !(isFree && a.freelancerAccepted) && !(isPrim && a.primaryAccepted) && !(isFall && a.fallbackAccepted) && <p className="text-[13px] text-faint">Check the terms on the left first. Accepting unlocks when they match.</p>}
+                  {isClient && <Button className="w-full" variant={allOk ? 'primary' : 'secondary'} disabled={!allOk || !!tx.pending} onClick={() => tx.run('Fund', () => simulateContract(config, { abi: trustLayerAbi, address: c, functionName: 'fund', args: [id!], value: a.total, chainId: sepolia.id, account: address }))}>Fund {formatEther(a.total)} ETH</Button>}
+                  {isClient && !allOk && <p className="text-[13px] text-faint">Funding unlocks when the freelancer and both arbiters have accepted.</p>}
+                  {((isFree && a.freelancerAccepted) || (isPrim && a.primaryAccepted) || (isFall && a.fallbackAccepted)) && !isClient && <p className="text-[14px] text-mint">You have accepted. Waiting for the others.</p>}
+                  <ConfirmCancel disabled={!!tx.pending} onConfirm={() => void tx.run('Cancel', () => simulateContract(config, { abi: trustLayerAbi, address: c, functionName: 'cancelBeforeFunding', args: [id!], chainId: sepolia.id, account: address }))} />
+                </div>
+              )}
+
+              {address && !wrong && isPart && !proposed && (
+                <WorkPanel id={id} account={address} tx={tx} roles={{ client: isClient, freelancer: isFree, primary: isPrim, fallback: isFall }}
+                  currentAmount={amounts?.[Number(a.currentIndex)] as bigint | undefined}
+                  state={{ status: a.status, phase: a.phase, currentIndex: Number(a.currentIndex), endIndex: Number(a.endIndex), phaseDeadline: Number(a.phaseDeadline), disputeOpenedAt: Number(a.disputeOpenedAt), clientCredit: a.clientCredit as bigint, freelancerCredit: a.freelancerCredit as bigint }} />
+              )}
+            </div>
+            <TxProgress pending={tx.pending} />
+            {tx.error && !tx.pending && <p role="alert" className="mt-4 rounded-xl bg-rose/10 px-4 py-3 text-[14px] text-rose">{tx.error}</p>}
+            {tx.lastHash && !tx.pending && !tx.error && <a className="mt-4 inline-flex items-center gap-1 text-[13px] text-ice hover:underline" target="_blank" rel="noreferrer" href={`https://sepolia.etherscan.io/tx/${tx.lastHash}`}>View the last transaction <ExternalLink className="h-3 w-3" /></a>}
+          </Card>
+        </aside>
+      </div>
+    </div>
+  )
 }
 
+function ConfirmCancel({ onConfirm, disabled }: { onConfirm: () => void; disabled: boolean }) {
+  const [armed, setArmed] = useState(false)
+  return armed
+    ? <div className="flex items-center gap-2 border-t border-line-soft pt-4"><Button variant="danger" size="sm" onClick={() => { setArmed(false); onConfirm() }}>Yes, cancel it</Button><Button variant="ghost" size="sm" onClick={() => setArmed(false)}>Keep it</Button></div>
+    : <div className="border-t border-line-soft pt-4"><Button variant="ghost" size="sm" disabled={disabled} onClick={() => setArmed(true)}>Cancel this agreement</Button></div>
+}

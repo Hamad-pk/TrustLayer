@@ -1,80 +1,180 @@
 import { useEffect, useState } from 'react'
-import { formatEther, parseEther, type Address } from 'viem'
+import { formatEther, parseEther, type Address, type PublicClient } from 'viem'
 import { useQuery } from '@tanstack/react-query'
 import { useConfig } from 'wagmi'
 import { simulateContract } from 'wagmi/actions'
 import { sepolia } from 'wagmi/chains'
+import { Check, ExternalLink, X } from 'lucide-react'
 import { trustLayerAbi, trustLayerAddress } from '../generated'
 import { isAllowed, type AgreementState, type Roles } from '../lib/actions'
 import { hashText } from '../lib/agreement'
 import type { useTx } from '../lib/useTx'
 import { SEPOLIA_DEPLOY_BLOCK, logsClient } from '../lib/config'
 import { fetchSubmissions, latestFor, loadEvidence, saveEvidence } from '../lib/submissions'
-import type { PublicClient } from 'viem'
-import { Card, Button, Input, Textarea } from './ui'
-import { Clock3, ShieldCheck, Send, CheckCircle2, AlertTriangle, Coins, FileText } from 'lucide-react'
+import { fmtDeadline } from '../lib/format'
+import { Button, ConfirmButton, CopyButton, Field, Input, Textarea } from './ui'
 
 const contract = trustLayerAddress[sepolia.id]
-const fmt = (s:number)=> new Date(s*1000).toLocaleString()
-type Props={ id:bigint; account:Address; state:AgreementState; roles:Roles; currentAmount:bigint|undefined; tx:ReturnType<typeof useTx> }
-export default function WorkPanel({ id, account, state, roles, currentAmount, tx }: Props){
- const config=useConfig()
- const [now,setNow]=useState(()=>Math.floor(Date.now()/1000))
- useEffect(()=>{const t=setInterval(()=>setNow(Math.floor(Date.now()/1000)),15000);return()=>clearInterval(t)},[])
- const [evidence,setEvidence]=useState('')
- const [reason,setReason]=useState('')
- const [toFreelancer,setToFreelancer]=useState('')
- const [withdrawTo,setWithdrawTo]=useState<string>(account)
- const can=(a:Parameters<typeof isAllowed>[0])=>isAllowed(a,state,now,roles)
- const busy=!!tx.pending
- const base={abi:trustLayerAbi,address:contract,chainId:sepolia.id,account} as const
- const call=<T,>(label:string,f:()=>Promise<T & {request:unknown}>)=>tx.run(label,f)
- let ruling:bigint|null=null
- try{ if(toFreelancer.trim()) ruling=parseEther(toFreelancer.trim()) }catch{ ruling=null }
- const rulingValid=ruling!==null && currentAmount!==undefined && ruling>=0n && ruling<=currentAmount
- const walletOk=/^0x[0-9a-fA-F]{40}$/.test(withdrawTo)
- const anyCredit=(roles.client && state.clientCredit>0n) || (roles.freelancer && state.freelancerCredit>0n)
- const myCredit=roles.client?state.clientCredit: roles.freelancer? state.freelancerCredit:0n
- const active=state.status===2
- const nothing=!anyCredit && !(['submit','approve','requestRevision','openDispute','resolve','defaultSplit','expire','endAfterCurrent'] as const).some(can)
- return (
- <div className="mt-4 space-y-4">
- {active && state.phase===0 && <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-3 text-xs text-white/60 flex gap-2"><Clock3 className="h-4 w-4 shrink-0"/> Waiting for submit. Deadline {fmt(state.phaseDeadline)}{now>=state.phaseDeadline?' · anyone can refund.':''}</div>}
- {active && state.phase===1 && <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-3 text-xs text-white/60 flex gap-2"><Clock3 className="h-4 w-4 shrink-0"/> Submitted. Review ends {fmt(state.phaseDeadline)}</div>}
- {active && state.phase===2 && <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-3 text-xs text-white/60">Revision — resubmit by {fmt(state.phaseDeadline)}</div>}
- {active && state.phase===3 && <div className="rounded-2xl border border-amber-500/20 bg-amber-500/10 p-3 text-xs text-amber-200 flex gap-2"><ShieldCheck className="h-4 w-4"/> Disputed.</div>}
- <Card className="p-4 sm:p-5">
- <div className="flex items-center gap-2 text-xs font-semibold tracking-widest uppercase text-white/40"><Send className="h-3.5 w-3.5"/> Actions</div>
- <div className="mt-3 flex flex-wrap gap-2">
- {can('submit') && <div className="w-full rounded-xl border border-white/10 bg-black/20 p-3"><div className="text-xs font-medium text-white">Submit #{state.currentIndex+1}</div><Textarea rows={2} placeholder="Evidence…" value={evidence} onChange={e=>setEvidence(e.target.value)} className="mt-2"/><Button size="sm" className="mt-2" disabled={busy||!evidence.trim()} onClick={()=>call('Submit',()=>simulateContract(config,{...base,functionName:'submit',args:[id, hashText(evidence.trim())]}))}>Submit</Button></div>}
- {can('approve') && <Button size="sm" disabled={busy} onClick={()=>call('Approve',()=>simulateContract(config,{...base,functionName:'approve',args:[id]}))}><CheckCircle2 className="h-4 w-4"/> Approve</Button>}
- {can('requestRevision') && <div className="flex gap-2 w-full sm:w-auto"><Input placeholder="Reason" value={reason} onChange={e=>setReason(e.target.value)} className="flex-1"/><Button size="sm" variant="ghost" disabled={busy||!reason.trim()} onClick={()=>call('Request revision',()=>simulateContract(config,{...base,functionName:'requestRevision',args:[id, hashText(reason.trim())]}))}>Revision</Button></div>}
- {can('openDispute') && <Button size="sm" variant="ghost" disabled={busy} onClick={()=>call('Dispute',()=>simulateContract(config,{...base,functionName:'openDispute',args:[id]}))}><AlertTriangle className="h-4 w-4"/> Dispute</Button>}
-  {can('resolve') && <div className="w-full rounded-xl border border-white/10 bg-black/20 p-3"><div className="text-xs text-white/60">Ruling: ETH to freelancer</div><div className="mt-2 flex gap-2"><Input placeholder="0.05" value={toFreelancer} onChange={e=>setToFreelancer(e.target.value)}/><Button size="sm" disabled={busy||!rulingValid} onClick={()=>call('Resolve',()=>simulateContract(config,{...base,functionName:'resolve',args:[id, ruling!]}))}>Resolve</Button></div>{currentAmount!==undefined && <div className="mt-1 text-xs text-white/40">Milestone: {formatEther(currentAmount)} ETH</div>}</div>}
- {can('defaultSplit') && <Button size="sm" variant="ghost" disabled={busy} onClick={()=>call('Default',()=>simulateContract(config,{...base,functionName:'defaultSplit',args:[id]}))}>Default split</Button>}
- {can('expire') && <Button size="sm" variant="ghost" disabled={busy} onClick={()=>call('Expire',()=>simulateContract(config,{...base,functionName:'expireFreelancerWindow',args:[id]}))}>Expire</Button>}
- {can('endAfterCurrent') && <Button size="sm" variant="ghost" disabled={busy} onClick={()=>call('End',()=>simulateContract(config,{...base,functionName:'endAfterCurrent',args:[id]}))}>End</Button>}
- </div>
- {anyCredit && <div className="mt-4 rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-3"><div className="flex items-center gap-2 text-xs font-semibold text-emerald-200"><Coins className="h-4 w-4"/> Credit: {formatEther(myCredit)} ETH</div><div className="mt-2 flex gap-2"><Input value={withdrawTo} onChange={e=>setWithdrawTo(e.target.value.trim())} placeholder="0x…" className="flex-1"/><Button size="sm" disabled={busy||!walletOk} onClick={()=>call('Withdraw',()=>simulateContract(config,{...base,functionName:'withdraw',args:[id, withdrawTo as Address]}))}>Withdraw</Button></div></div>}
- {nothing && <p className="mt-3 text-xs text-white/40">No action available.</p>}
- </Card>
- {active && <SubmissionCard id={id} index={state.currentIndex} phase={state.phase} />}
- </div>
- )
+type Props = { id: bigint; account: Address; state: AgreementState; roles: Roles; currentAmount: bigint | undefined; tx: ReturnType<typeof useTx> }
+
+function Block({ title, children }: { title?: string; children: React.ReactNode }) {
+  return <div className="border-t border-line-soft pt-5 first:border-0 first:pt-0">{title && <h3 className="mb-3 text-[15px] font-semibold">{title}</h3>}{children}</div>
 }
-function SubmissionCard({ id, index, phase }: { id: bigint; index: number; phase: number }) {
- const client = logsClient as PublicClient
- const [pasted,setPasted]=useState('')
- const { data: subs, error, isLoading } = useQuery({ queryKey: ['sub', id.toString(), index, phase], queryFn: ()=>fetchSubmissions(client, contract, id, SEPOLIA_DEPLOY_BLOCK), refetchInterval: 15000 })
- const sub = subs ? latestFor(subs, index) : undefined
- const saved = sub ? loadEvidence(sub.evidenceHash) : ''
- const matches = !!sub && pasted.trim()!=='' && hashText(pasted)===sub.evidenceHash
- return (
- <Card className="p-4"><div className="flex items-center gap-2 text-xs font-semibold tracking-widest uppercase text-white/40"><FileText className="h-3.5 w-3.5"/> Latest submission</div>
- {isLoading && <p className="mt-2 text-xs text-white/40">Reading chain…</p>}
- {error && <p className="mt-2 text-xs text-red-300 break-words">{(error as Error).message.slice(0,240)}</p>}
- {subs && !sub && <p className="mt-2 text-xs text-white/40">No submission yet.</p>}
- {sub && (<><p className="mt-2 break-all text-xs font-mono text-white/60">{sub.evidenceHash}</p><a className="text-xs text-cyan-300 underline" target="_blank" rel="noreferrer" href={`https://sepolia.etherscan.io/tx/${sub.txHash}`}>View tx</a>{saved && <details className="mt-2"><summary className="cursor-pointer text-xs text-white/70">Saved in browser</summary><p className="mt-1 whitespace-pre-wrap rounded-xl border border-white/10 bg-black/20 p-2 text-xs text-white/70">{saved}</p></details>}<div className="mt-3"><p className="text-xs text-white/50">Paste evidence to verify:</p><Textarea rows={3} value={pasted} onChange={e=>setPasted(e.target.value)} className="mt-1"/>{pasted.trim() && matches && <p className="mt-1 rounded-xl bg-emerald-500/15 border border-emerald-500/20 p-2 text-xs text-emerald-200">✓ Matches.</p>}{pasted.trim() && !matches && <p className="mt-1 rounded-xl bg-red-500/15 border border-red-500/20 p-2 text-xs text-red-200">No match.</p>}{matches && <Button size="sm" variant="subtle" className="mt-1" onClick={()=>saveEvidence(sub.evidenceHash, pasted.trim())}>Save</Button>}</div></>)}
- </Card>
- )
+
+export default function WorkPanel({ id, account, state, roles, currentAmount, tx }: Props) {
+  const config = useConfig()
+  const [now, setNow] = useState(() => Math.floor(Date.now() / 1000))
+  useEffect(() => { const t = setInterval(() => setNow(Math.floor(Date.now() / 1000)), 15000); return () => clearInterval(t) }, [])
+  const [evidence, setEvidence] = useState('')
+  const [reason, setReason] = useState('')
+  const [toFree, setToFree] = useState('')
+  const [withdrawTo, setWithdrawTo] = useState<string>(account)
+
+  const can = (a: Parameters<typeof isAllowed>[0]) => isAllowed(a, state, now, roles)
+  const busy = !!tx.pending
+  const base = { abi: trustLayerAbi, address: contract, chainId: sepolia.id, account } as const
+  const call = <T,>(label: string, f: () => Promise<T & { request: unknown }>) => tx.run(label, f)
+  let ruling: bigint | null = null
+  try { if (toFree.trim()) ruling = parseEther(toFree.trim()) } catch { ruling = null }
+  const valid = ruling !== null && currentAmount !== undefined && ruling >= 0n && ruling <= currentAmount
+  const walletOk = /^0x[0-9a-fA-F]{40}$/.test(withdrawTo)
+  const anyCredit = (roles.client && state.clientCredit > 0n) || (roles.freelancer && state.freelancerCredit > 0n)
+  const myCredit = roles.client ? state.clientCredit : roles.freelancer ? state.freelancerCredit : 0n
+  const active = state.status === 2
+  const amt = currentAmount !== undefined ? formatEther(currentAmount) : ''
+  const idle = !anyCredit && !(['submit', 'approve', 'requestRevision', 'openDispute', 'resolve', 'defaultSplit', 'expire', 'endAfterCurrent'] as const).some(can)
+
+  const note =
+    !active ? null
+    : state.phase === 0 ? `Waiting for the freelancer to submit. Deadline: ${fmtDeadline(state.phaseDeadline)}.${now >= state.phaseDeadline ? ' It has passed, so anyone can refund the client.' : ''}`
+    : state.phase === 1 ? `Submitted. The client\u2019s review window ends ${fmtDeadline(state.phaseDeadline)}.${now >= state.phaseDeadline ? ' It has ended, but the client can still approve until a dispute opens.' : ''}`
+    : state.phase === 2 ? `Revision requested. The freelancer must resubmit by ${fmtDeadline(state.phaseDeadline)}.`
+    : `In dispute since ${fmtDeadline(state.disputeOpenedAt)}. The primary arbiter has 14 days, then the fallback 14 more, then anyone can settle it 50/50.`
+
+  return (
+    <div className="space-y-5">
+      {note && <p className="rounded-xl bg-raise px-4 py-3 text-[14px] leading-snug text-mute">{note}</p>}
+
+      {can('submit') && (
+        <Block title={state.phase === 2 ? 'Resubmit your work' : 'Submit your work'}>
+          <Field label="Evidence" hint="A link or a short description. Only a hash goes on-chain, so send the same text to the client.">
+            <Textarea rows={3} value={evidence} onChange={(e) => setEvidence(e.target.value)} placeholder="https://… or what you delivered" />
+          </Field>
+          <Button className="mt-3" disabled={busy || !evidence.trim()} onClick={() => {
+            const cleanEvidence = evidence.trim()
+            const evidenceHash = hashText(cleanEvidence)
+
+            saveEvidence(evidenceHash, cleanEvidence)
+
+            void call('Submit', () =>
+              simulateContract(config, {
+                ...base,
+                functionName: 'submit',
+                args: [id, evidenceHash],
+              }),
+            )
+          }}>
+            {state.phase === 2 ? 'Resubmit work' : 'Submit work'}
+          </Button>
+        </Block>
+      )}
+
+      {(can('approve') || can('requestRevision')) && (
+        <Block title="Review the submission">
+          {can('approve') && <Button className="w-full" disabled={busy} onClick={() => call('Approve', () => simulateContract(config, { ...base, functionName: 'approve', args: [id] }))}>Approve and release {amt} ETH</Button>}
+          {can('requestRevision') && (
+            <div className="mt-4">
+              <Field label="Or ask for changes" hint="Only a hash of your reason goes on-chain. Tell the freelancer directly.">
+                <Textarea rows={2} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="What should change?" />
+              </Field>
+              <Button variant="secondary" className="mt-3" disabled={busy || !reason.trim()} onClick={() => call('Revision', () => simulateContract(config, { ...base, functionName: 'requestRevision', args: [id, hashText(reason.trim())] }))}>Request a revision</Button>
+            </div>
+          )}
+        </Block>
+      )}
+
+      {can('openDispute') && (
+        <Block title="Not resolved?">
+          <p className="mb-3 text-[14px] text-mute">An arbiter will decide how this milestone is paid. The funds stay frozen until then.</p>
+          <ConfirmButton variant="secondary" disabled={busy} confirmLabel="Yes, open dispute" onConfirm={() => void call('Dispute', () => simulateContract(config, { ...base, functionName: 'openDispute', args: [id] }))}>Open a dispute</ConfirmButton>
+        </Block>
+      )}
+
+      {can('resolve') && (
+        <Block title="Your ruling">
+          <Field label="Amount to the freelancer (ETH)" hint={`The client receives the rest of ${amt} ETH.`}>
+            <Input value={toFree} onChange={(e) => setToFree(e.target.value.trim())} placeholder="0.015" inputMode="decimal" className="tabular" />
+          </Field>
+          {currentAmount !== undefined && (
+            <div className="mt-2 flex gap-2">
+              <Button variant="ghost" size="sm" onClick={() => setToFree('0')}>All to client</Button>
+              <Button variant="ghost" size="sm" onClick={() => setToFree(formatEther(currentAmount / 2n))}>Half</Button>
+              <Button variant="ghost" size="sm" onClick={() => setToFree(formatEther(currentAmount))}>All to freelancer</Button>
+            </div>
+          )}
+          {toFree && !valid && <p className="mt-2 text-[13px] text-rose">Enter an amount between 0 and {amt}.</p>}
+          <Button className="mt-3" disabled={busy || !valid} onClick={() => call('Ruling', () => simulateContract(config, { ...base, functionName: 'resolve', args: [id, ruling!] }))}>Submit ruling</Button>
+        </Block>
+      )}
+
+      {(can('defaultSplit') || can('expire')) && (
+        <Block title="Deadline passed">
+          {can('defaultSplit') && <Button variant="secondary" disabled={busy} onClick={() => call('Settle', () => simulateContract(config, { ...base, functionName: 'defaultSplit', args: [id] }))}>Settle 50/50</Button>}
+          {can('expire') && <Button variant="secondary" disabled={busy} onClick={() => call('Refund', () => simulateContract(config, { ...base, functionName: 'expireFreelancerWindow', args: [id] }))}>Refund the client</Button>}
+          <p className="mt-2 text-[13px] text-faint">Anyone can trigger this. The outcome is fixed by the rules, not by the caller.</p>
+        </Block>
+      )}
+
+      {can('endAfterCurrent') && (
+        <Block title="Stop after this milestone">
+          <p className="mb-3 text-[14px] text-mute">Refunds every later milestone to you now. The current one continues normally.</p>
+          <ConfirmButton variant="secondary" disabled={busy} confirmLabel="Yes, refund later milestones" onConfirm={() => void call('End', () => simulateContract(config, { ...base, functionName: 'endAfterCurrent', args: [id] }))}>End after the current milestone</ConfirmButton>
+        </Block>
+      )}
+
+      {anyCredit && (
+        <Block title="Withdraw your funds">
+          <div className="font-display text-3xl font-semibold tabular">{formatEther(myCredit)} <span className="text-base font-normal text-faint">ETH</span></div>
+          <Field label="Send to" className="mt-3" error={walletOk ? undefined : 'Enter a valid address.'}>
+            <Input value={withdrawTo} onChange={(e) => setWithdrawTo(e.target.value.trim())} className="font-mono text-sm" />
+          </Field>
+          <Button variant="primary" className="mt-3 w-full" disabled={busy || !walletOk} onClick={() => call('Withdraw', () => simulateContract(config, { ...base, functionName: 'withdraw', args: [id, withdrawTo as Address] }))}>Withdraw</Button>
+        </Block>
+      )}
+
+      {idle && <p className="text-[14px] text-mute">Nothing for you to do right now.</p>}
+      {active && <SubmissionBox id={id} idx={state.currentIndex} phase={state.phase} />}
+    </div>
+  )
+}
+
+function SubmissionBox({ id, idx, phase }: { id: bigint; idx: number; phase: number }) {
+  const client = logsClient as PublicClient
+  const [pasted, setPasted] = useState('')
+  const { data: subs, error, isLoading } = useQuery({ queryKey: ['sub', id.toString(), idx, phase], queryFn: () => fetchSubmissions(client, contract, id, SEPOLIA_DEPLOY_BLOCK), refetchInterval: 15000 })
+  const sub = subs ? latestFor(subs, idx) : undefined
+  const saved = sub ? loadEvidence(sub.evidenceHash) : ''
+  const match = !!sub && pasted.trim() !== '' && hashText(pasted) === sub.evidenceHash
+  if (!isLoading && !error && !sub) return null
+  return (
+    <div className="rounded-xl border border-line-soft bg-abyss/50 p-4 text-[14px]">
+      <h3 className="font-semibold">Latest submission</h3>
+      {isLoading && <p className="mt-2 text-mute">Reading the chain…</p>}
+      {error && <p className="mt-2 break-words text-rose">Could not read the history: {(error as Error).message.slice(0, 200)}</p>}
+      {sub && (
+        <>
+          <div className="mt-2 flex items-center gap-1 text-faint"><span className="truncate font-mono text-xs">{sub.evidenceHash}</span><CopyButton value={sub.evidenceHash} label="Copy hash" className="h-7 w-7" /></div>
+          <a className="inline-flex items-center gap-1 text-ice hover:underline" target="_blank" rel="noreferrer" href={`https://sepolia.etherscan.io/tx/${sub.txHash}`}>View the transaction <ExternalLink className="h-3 w-3" /></a>
+          {saved && <details className="mt-3"><summary className="cursor-pointer text-mute transition hover:text-ink">Evidence saved in this browser</summary><p className="mt-2 whitespace-pre-wrap rounded-lg bg-deep p-3 text-ink">{saved}</p></details>}
+          <Field label="Check evidence you received" className="mt-4" hint="Paste it to confirm it is exactly what was submitted.">
+            <Textarea rows={3} value={pasted} onChange={(e) => setPasted(e.target.value)} />
+          </Field>
+          {pasted.trim() && (match
+            ? <p className="mt-2 flex items-center gap-2 rounded-lg bg-mint/10 px-3 py-2 text-mint"><Check className="h-4 w-4" />Matches the submitted hash.</p>
+            : <p className="mt-2 flex items-center gap-2 rounded-lg bg-rose/10 px-3 py-2 text-rose"><X className="h-4 w-4" />Does not match. It may be an older or edited version.</p>)}
+          {match && <Button variant="ghost" size="sm" className="mt-2" onClick={() => saveEvidence(sub.evidenceHash, pasted.trim())}>Save in this browser</Button>}
+        </>
+      )}
+    </div>
+  )
 }

@@ -1,47 +1,41 @@
-import { Route, Routes } from 'react-router-dom'
-import { motion } from 'framer-motion'
+import { Route, Routes, useLocation } from 'react-router-dom'
+import { AnimatePresence, motion } from 'framer-motion'
+import { ExternalLink } from 'lucide-react'
+import { sepolia } from 'wagmi/chains'
 import AgreementPage from './components/AgreementPage'
+import Agreements from './components/Agreements'
+import CreateAgreementPage from './components/CreateAgreementPage'
 import Home from './components/Home'
 import Navbar from './components/Navbar'
+import TxToaster from './components/TxToaster'
+import { trustLayerAddress } from './generated'
 
 export default function App() {
+  const location = useLocation()
   return (
-    <div className="min-h-screen bg-[#070b18] text-slate-100 selection:bg-cyan-500/30">
-      {/* ambient background */}
-      <div className="pointer-events-none fixed inset-0 -z-10">
-        <div className="absolute inset-0 bg-[#070b18]" />
-        <div className="absolute inset-0 bg-grid opacity-[0.5]" />
-        <div className="absolute inset-0 bg-glow" />
-        <motion.div
-          className="absolute -top-32 left-1/2 h-[700px] w-[900px] -translate-x-1/2 rounded-full opacity-20 blur-[120px]"
-          style={{ background: 'radial-gradient(ellipse at center, #22d3ee 0%, transparent 60%)' }}
-          animate={{ scale: [1, 1.05, 1], opacity: [0.15, 0.22, 0.15] }}
-          transition={{ duration: 8, repeat: Infinity, ease: 'easeInOut' }}
-        />
-      </div>
-
+    <div className="flex min-h-screen flex-col">
       <Navbar />
-
-      <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-10">
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/agreement/:id" element={<AgreementPage />} />
-        </Routes>
+      <TxToaster />
+      <main className="mx-auto w-full max-w-[1180px] flex-1 px-4 py-8 sm:px-6 sm:py-12">
+        <AnimatePresence mode="wait" initial={false}>
+          <motion.div key={location.pathname} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.16 }}>
+            <Routes location={location}>
+              <Route path="/" element={<Home />} />
+              <Route path="/agreements" element={<Agreements />} />
+              <Route path="/create" element={<CreateAgreementPage />} />
+              <Route path="/agreement/:id" element={<AgreementPage />} />
+            </Routes>
+          </motion.div>
+        </AnimatePresence>
       </main>
-
-      <footer className="border-t border-white/5 py-8">
-        <div className="mx-auto flex max-w-6xl flex-col gap-3 px-4 text-xs leading-relaxed text-white/40 sm:flex-row sm:items-center sm:justify-between sm:px-6">
-          <div>
-            TrustLayer • Milestone escrow •{' '}
-            <a href="https://sepolia.etherscan.io/address/0x6A348ebd89B3C8fB63E1CcAb4f2F84DB360f9299#code" target="_blank" rel="noreferrer" className="underline decoration-white/20 underline-offset-4 hover:text-white/70">
-              0x6A34…9299 on Sepolia
-            </a>{' '}
-            • Verified • No admin • No upgrade path
-          </div>
-          <div className="font-mono text-[11px] tracking-wide text-white/30">POLICY v1 • EVM Cancun • Solidity 0.8.28</div>
+      <footer className="border-t border-line-soft">
+        <div className="mx-auto flex max-w-[1180px] flex-col gap-2 px-4 py-6 text-sm text-faint sm:flex-row sm:items-center sm:justify-between sm:px-6">
+          <p>TrustLayer is an unaudited portfolio project on the Sepolia test network. Do not use real funds.</p>
+          <a href={`https://sepolia.etherscan.io/address/${trustLayerAddress[sepolia.id]}#code`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 transition hover:text-ink">
+            Verified contract <ExternalLink className="h-3.5 w-3.5" />
+          </a>
         </div>
       </footer>
     </div>
   )
 }
-

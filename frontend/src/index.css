@@ -1,59 +1,60 @@
 @import "tailwindcss";
 
 @theme {
-  --font-display: "Space Grotesk", system-ui, sans-serif;
-  --font-body: "Inter", system-ui, sans-serif;
-  --font-mono: "JetBrains Mono", ui-monospace, monospace;
-  --color-bg: #070b18;
-  --color-surface: #0f172a;
-  --color-surface-2: #141e36;
-  --color-border: #1e2d4a;
-  --color-accent: #22d3ee;
-  --color-accent-2: #8b5cf6;
+  --font-display: "Bricolage Grotesque", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Instrument Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+
+  /* surfaces: a deep teal-navy, layered so panels read as raised */
+  --color-abyss: #070e14;
+  --color-deep: #0c1820;
+  --color-raise: #122430;
+  --color-line: #1f3544;
+  --color-line-soft: #162a36;
+  /* text */
+  --color-ink: #e9f1f4;
+  --color-mute: #93a8b3;
+  --color-faint: #6f8895;
+  /* gold = the one thing you can act on; the rest is semantic money colour */
+  --color-gold: #eab94f;
+  --color-gold-ink: #1a1305;
+  --color-ice: #6fa8ff;   /* held in escrow */
+  --color-mint: #46d6a0;  /* released to the freelancer */
+  --color-coral: #ff9b73; /* refunded to the client */
+  --color-rose: #f0707a;  /* dispute / error */
 }
 
-* { scrollbar-width: thin; scrollbar-color: #334155 transparent; }
-*::-webkit-scrollbar { width: 6px; height: 6px; }
-*::-webkit-scrollbar-thumb { background: #334155; border-radius: 9999px; }
-
-html { scroll-behavior: smooth; }
-body {
-  font-family: var(--font-body);
-  background: var(--color-bg);
-  color: #e2e8f0;
-  -webkit-font-smoothing: antialiased;
-  text-rendering: optimizeLegibility;
+@layer base {
+  html { background: var(--color-abyss); scroll-behavior: smooth; }
+  body {
+    font-family: var(--font-sans);
+    color: var(--color-ink);
+    background:
+      radial-gradient(1100px 560px at 8% -8%, rgb(111 168 255 / 0.11), transparent 62%),
+      var(--color-abyss);
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  h1, h2, h3 { font-family: var(--font-display); letter-spacing: -0.025em; }
+  ::selection { background: rgb(234 185 79 / 0.3); }
+  :focus-visible { outline: 2px solid var(--color-ice); outline-offset: 2px; }
+  * { scrollbar-width: thin; scrollbar-color: var(--color-line) transparent; }
 }
 
-::selection { background: rgba(34,211,238,0.3); }
+@layer utilities {
+  .tabular { font-variant-numeric: tabular-nums; }
+  .hatch { background: repeating-linear-gradient(135deg, #5d7886 0 3px, #86a0ae 3px 6px); }
+  .skeleton {
+    background: linear-gradient(90deg, rgb(255 255 255 / 0.04) 25%, rgb(255 255 255 / 0.09) 40%, rgb(255 255 255 / 0.04) 60%);
+    background-size: 300% 100%;
+    animation: shimmer 1.5s ease-in-out infinite;
+  }
+  .glass { backdrop-filter: blur(16px) saturate(1.2); -webkit-backdrop-filter: blur(16px) saturate(1.2); }
+}
 
-/* animated grid bg */
-.bg-grid {
-  background-image:
-    linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
-  background-size: 32px 32px;
-}
-.bg-glow {
-  background:
-    radial-gradient(600px 400px at 20% 0%, rgba(34,211,238,0.14), transparent 60%),
-    radial-gradient(700px 500px at 85% 10%, rgba(139,92,246,0.14), transparent 60%),
-    radial-gradient(900px 600px at 50% 100%, rgba(14,165,233,0.08), transparent 70%);
-}
-.glass {
-  backdrop-filter: blur(16px) saturate(1.2);
-  -webkit-backdrop-filter: blur(16px) saturate(1.2);
-}
-.shimmer {
-  position: relative; overflow: hidden;
-}
-.shimmer::after {
-  content:""; position:absolute; inset:0;
-  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.07), transparent);
-  transform: translateX(-100%); animation: shimmer 2.8s infinite;
-}
-@keyframes shimmer { 100% { transform: translateX(100%); } }
+@keyframes shimmer { from { background-position: 100% 0; } to { background-position: -100% 0; } }
 
-/* focus ring */
-*:focus-visible { outline: 2px solid #22d3ee; outline-offset: 2px; }
-
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
+}
