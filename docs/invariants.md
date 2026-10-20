@@ -38,6 +38,7 @@ There is no stored `outstandingCredits` or `allocated`, so no second source of t
 - **SAFE-4.** `Completed` implies every milestone in `[0, endIndex]` is settled, and `endIndex` never increases.
 - **SAFE-5.** Terms never change after `create`: addresses, amounts, `count` and `termsHash` are never rewritten. (`endIndex` is an execution pointer, not a term.)
 - **SAFE-6.** `Disputed` blocks `approve`, `requestRevision`, `submit` and `openDispute`.
+- **SAFE-6b.** While a milestone is `Disputed`, its funds can leave only through `resolve()` or `defaultSplit()`. In every other call the milestone amount stays locked and the freelancer's credit does not increase. The client's `endAfterCurrent` may still refund *later* milestones, never the disputed one.
 - **SAFE-7.** A dispute settles exactly once, with the full amount allocated.
 - **SAFE-8.** In terminal states, every function except `withdraw` reverts.
 - **SAFE-9.** The four participant addresses are nonzero and pairwise distinct, and no arbiter has a credit slot.
@@ -68,7 +69,7 @@ These assume transactions are included. They do not cover chain failure, censors
 
 | Test type | Targets |
 |---|---|
-| Invariant (handler + ghosts) | ACC-1 to ACC-8 |
+| Invariant (handler + ghosts) | ACC-1 to ACC-8, SAFE-6b |
 | Stateful fuzz | SAFE-1 to SAFE-4, SAFE-6 |
 | Unit | AUTH-*, SAFE-5, SAFE-8 to SAFE-10, boundaries |
 | Scenario tests | LIVE-1 to LIVE-4 |

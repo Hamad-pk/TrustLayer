@@ -36,6 +36,7 @@
 | 30 | Missing criteria document | **Non-mitigation.** Trust assumption 5 | AC-VER-4 | UI requirement |
 | 31 | Dead arbiters chosen by the client | Opt-in. Visible before acceptance. Default split | AC-ACC-*, AC-RES-5 | Documented residual risk |
 | 32 | Timeout caller seeks a reward | No reward exists | AC-TMO-5 | Caller credit and balance unchanged |
+| 33 | Freelancer claims a timeout payout while a dispute is open | No timeout pays the freelancer. Opening a dispute freezes the milestone: approve, revise, resubmit and the timeout refund all revert | AC-DIS-4, SAFE-6, SAFE-6b | Unit: every closed path reverts while disputed. Invariant: funds cannot leave a disputed milestone except by ruling or default split |
 
 ## Test levels
 

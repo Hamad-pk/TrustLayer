@@ -1,7 +1,10 @@
-# TrustLayer: Design Documentation (Phase 0, final)
+# TrustLayer: Design Documentation
 
-TrustLayer is a milestone-based ETH escrow protocol for a client and a freelancer, with two nominated arbiters.
-**Status:** specification complete, no Solidity written yet. **Unaudited portfolio project. Not production-ready.**
+TrustLayer is a milestone-based ETH escrow protocol for a client and freelancer, with two nominated arbiters.
+
+The Solidity contract and Foundry test suites are implemented. This directory documents the protocol specification, design decisions, lifecycle, invariants, threat model, and testing requirements that guide the implementation. Keep these documents aligned with the code and tests.
+
+**Status:** implemented portfolio project, deployed to Sepolia testnet. **Unaudited and not production-ready.**
 
 ## Reading order
 
