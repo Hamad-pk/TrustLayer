@@ -104,12 +104,14 @@ contract FuzzTest is Base {
     /// AUTH-7: nobody but the credited party can withdraw.
     function testFuzz_withdraw_onlyParties(address caller) public {
         vm.assume(caller != freelancer && caller != client && caller != address(0));
+
         uint256 id = _active(1, uint128(ONE));
         _submit(id);
         _approve(id);
+
         vm.prank(caller);
         vm.expectRevert(TrustLayer.NotParticipant.selector);
-        tl.withdraw(id, caller);
+        tl.withdraw(id, address(this));
     }
 
     /// AUTH-4: resolve by anyone other than the right arbiter in the right window always reverts.
