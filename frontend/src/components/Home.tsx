@@ -9,6 +9,8 @@ import AgreementRow, { type Ag } from './AgreementRow'
 import Vault from './Vault'
 import { Button, Card, Input, Skeleton } from './ui'
 import { CountUp } from './FundsBar'
+import ProofStrip from './ProofStrip'
+import { DEMO_AGREEMENT_ID } from '../lib/site'
 
 const c = trustLayerAddress[sepolia.id]
 
@@ -39,25 +41,28 @@ export default function Home() {
   const rise = (d: number) => (reduce ? {} : { initial: { opacity: 0, y: 14 }, animate: { opacity: 1, y: 0 }, transition: { duration: 0.5, delay: d, ease: [0.2, 0.7, 0.2, 1] as const } })
 
   return (
-    <div className="space-y-24">
-      <section className="grid items-center gap-12 pt-4 lg:grid-cols-[1.05fr_1fr] lg:gap-16 lg:pt-10">
+    <div className="space-y-20">
+      <section className="grid items-start gap-12 lg:grid-cols-[1.05fr_1fr] lg:gap-16">
         <div>
           <motion.p {...rise(0)} className="inline-flex items-center gap-2 text-sm text-mute">
             <span className="h-2 w-2 rounded-full bg-mint shadow-[0_0_10px_rgb(70_214_160/0.7)]" /> Live on the Sepolia test network
           </motion.p>
-          <motion.h1 {...rise(0.08)} className="mt-5 text-[44px] font-semibold leading-[1.02] sm:text-6xl lg:text-[68px]">
+          <motion.h1 {...rise(0.08)} className="mt-5 text-balance text-[40px] font-semibold leading-[1.04] sm:text-5xl lg:text-[60px]">
             Hold the payment until the work is done.
           </motion.h1>
           <motion.p {...rise(0.16)} className="mt-6 max-w-[50ch] text-lg leading-relaxed text-mute">
             TrustLayer keeps a client&rsquo;s ETH in a contract and releases it milestone by milestone. If the two sides disagree, an arbiter they both chose decides. No one holds an admin key.
           </motion.p>
-          <motion.div {...rise(0.24)} className="mt-9 flex flex-wrap gap-3">
+          <motion.div {...rise(0.24)} className="mt-8 flex flex-wrap items-center gap-x-5 gap-y-3">
             <Link to="/create"><Button size="lg">Create an agreement <ArrowRight className="h-4 w-4" /></Button></Link>
             <Link to="/agreements"><Button size="lg" variant="secondary">Browse agreements</Button></Link>
+            <Link to={`/agreement/${DEMO_AGREEMENT_ID}`} className="group inline-flex items-center gap-1.5 text-[15px] text-mute transition hover:text-ink">See a real, completed agreement <ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" /></Link>
           </motion.div>
         </div>
         <motion.div {...rise(0.2)}><Vault /></motion.div>
       </section>
+
+      <ProofStrip />
 
       <Card className="grid gap-6 p-5 sm:grid-cols-[1fr_auto] sm:items-center sm:p-6">
         <form className="flex flex-col gap-3 sm:flex-row sm:items-center" onSubmit={(e) => { e.preventDefault(); if (/^\d+$/.test(jump)) nav(`/agreement/${jump}`) }}>
