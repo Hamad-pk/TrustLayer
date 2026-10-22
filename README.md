@@ -109,7 +109,7 @@ npm run build
 npm run lint
 ```
 
-The frontend is configured for Sepolia and a local Foundry/Anvil chain. Never put wallet private keys or other secrets in a `VITE_*` variable; Vite exposes those values to browser code.
+The frontend currently targets the deployed Sepolia contract; local Anvil support is not wired through the dApp yet. Never put wallet private keys or other secrets in a `VITE_*` variable; Vite exposes those values to browser code.
 
 ## Security assumptions and known limitations
 

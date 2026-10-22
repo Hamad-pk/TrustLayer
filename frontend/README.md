@@ -1,32 +1,57 @@
-# React + TypeScript + Vite
+# TrustLayer Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+The TrustLayer interface is a React, TypeScript, and Vite application for interacting with the TrustLayer escrow contract deployed on the Sepolia test network.
 
-Currently, two official plugins are available:
+## Requirements
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- Node.js 24.x
+- npm
+- A browser wallet configured for Sepolia
+- Sepolia test ETH for transactions
 
-## React Compiler
+## Setup
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+From the repository root:
 
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+```bash
+cd frontend
+npm ci
+cp .env.example .env.local
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+Set `VITE_SEPOLIA_RPC_URL` in `.env.local` to a Sepolia RPC endpoint. The app reads event history from a separate public Sepolia RPC by default; set `VITE_LOGS_RPC_URL` if you need to override it.
+
+**Security:** Variables prefixed with `VITE_` are exposed to browser code. Never store wallet private keys or other secrets in them.
+
+## Commands
+
+Start the development server:
+
+```bash
+npm run dev
+```
+
+Build the production frontend:
+
+```bash
+npm run build
+```
+
+Run the linter:
+
+```bash
+npm run lint
+```
+
+Preview the production build:
+
+```bash
+npm run build
+npm run preview
+```
+
+## Network scope
+
+The current dApp targets the TrustLayer deployment on Sepolia. Although the wallet configuration recognizes a local Foundry chain, the frontend screens and contract address are wired to Sepolia. Local Anvil use is not yet supported end to end.
+
+This project is intended for testnet demonstration only. Do not use real funds.

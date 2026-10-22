@@ -11,7 +11,7 @@ Run `forge test`. Names embed the acceptance-criteria IDs from `docs/user-storie
 | Adversarial (8 tests) | `test/Adversarial.t.sol` | Reentrant receiver paid once, reverting receiver preserves credit, gas-burning receiver, forced ETH, collusion bounded by `endAfterCurrent`, gas with 20 milestones |
 | Invariant (9 invariants, 256 runs x 100 calls) | `test/invariant/` | ACC-1 to ACC-8, SAFE-1 to SAFE-4 across random multi-agreement action sequences |
 
-Total at the time of writing: 82 unit/fuzz/adversarial tests plus 9 invariants, all passing.
+Total at the time of writing: 84 unit/fuzz/adversarial tests plus 9 invariants, all passing.
 
 ## Invariant suite details
 

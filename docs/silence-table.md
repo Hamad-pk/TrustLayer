@@ -7,7 +7,7 @@ Question for each state: if nobody ever acts again, what happens to the locked E
 | `Proposed` | No funds exist | Anyone named can cancel | any time | Nothing is at stake |
 | `Working` | Any account | `expireFreelancerWindow`: full refund to client, agreement cancelled | 14d after activation | Freelancer silence loses the milestone |
 | `Submitted` | Client: any time (`approve` or `openDispute`). Freelancer: `openDispute` | Deadline is 7d after submission | 0 / 7d | **Funds stay locked.** Both parties chose not to act. Documented limitation |
-| `RevisionRequested` | Freelancer: any time (`submit` or `openDispute`). Any account: `expireFreelancerWindow` | Refund to client | 14d after request | Freelancer silence loses the milestone |
+| `RevisionRequested` | Freelancer: any time (`submit` or `openDispute`). Any account: `expireFreelancerWindow` at/after deadline | Refund to client | 14d after request | At/after the deadline, dispute and timeout are both eligible; the first mined transaction wins. A dispute starts arbitration; a timeout cancels the agreement and refunds the current and future milestones. |
 | `Disputed` | Primary arbiter, then fallback, then any account (`defaultSplit`) | 14d, 14d, then split | 28d after opening | Split is deterministic, so no stuck state |
 | `Completed` or `Cancelled` | Each credited party | `withdraw` | any time | An owner's credit waits forever. No sweep exists |
 

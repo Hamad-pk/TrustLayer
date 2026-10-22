@@ -31,3 +31,4 @@ Tests must match this table row for row. `settle(client, freelancer, reason)` is
 4. No timeout or exit iterates over milestones.
 5. When two valid transactions race, the first mined wins and the second reverts on its re-checked preconditions.
 6. Every listed function is `nonReentrant` where it moves ETH (only T-17 does), and follows checks-effects-interactions everywhere.
+7. At/after a `RevisionRequested` deadline, the freelancer's `openDispute` and a permissionless `expireFreelancerWindow` can both be eligible. The first mined transaction wins: dispute first starts arbitration; timeout first cancels the agreement and refunds the current and future milestones.

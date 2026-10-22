@@ -695,6 +695,40 @@ contract ExitTest is Base {
         assertEq(_a(id).freelancerCredit, 0);
     }
 
+    function test_revisionDeadline_disputeWinsBeforeTimeout() public {
+        uint256 id = _active(2, uint128(ONE));
+        _submit(id);
+        vm.prank(client);
+        tl.requestRevision(id, keccak256("r"));
+        vm.warp(_a(id).phaseDeadline);
+
+        vm.prank(freelancer);
+        tl.openDispute(id);
+
+        assertEq(uint256(_a(id).phase), uint256(TrustLayer.Phase.Disputed));
+        assertEq(_a(id).locked, 2 ether);
+        vm.expectRevert(TrustLayer.WrongPhase.selector);
+        tl.expireFreelancerWindow(id);
+    }
+
+    function test_revisionDeadline_timeoutWinsBeforeDispute() public {
+        uint256 id = _active(2, uint128(ONE));
+        _submit(id);
+        vm.prank(client);
+        tl.requestRevision(id, keccak256("r"));
+        vm.warp(_a(id).phaseDeadline);
+
+        tl.expireFreelancerWindow(id);
+
+        TrustLayer.Agreement memory a = _a(id);
+        assertEq(uint256(a.status), uint256(TrustLayer.Status.Cancelled));
+        assertEq(a.clientCredit, 2 ether);
+        assertEq(a.locked, 0);
+        vm.prank(freelancer);
+        vm.expectRevert(TrustLayer.WrongStatus.selector);
+        tl.openDispute(id);
+    }
+
     function test_AC_TMO_2_notWhileSubmittedOrDisputedAndNotTwice() public {
         uint256 id = _active(2, uint128(ONE));
         _submit(id);

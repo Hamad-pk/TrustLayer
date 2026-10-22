@@ -17,13 +17,13 @@ const c = trustLayerAddress[sepolia.id]
 const STEPS = [
   { who: 'Client and freelancer', what: 'Agree the milestones', text: 'The client sets the amounts. The freelancer and two arbiters accept the exact terms.' },
   { who: 'Client', what: 'Fund the agreement', text: 'The full amount goes into the contract. Neither person can touch it outside the rules.' },
-  { who: 'Freelancer', what: 'Deliver, one milestone at a time', text: 'The client approves, asks for changes or disputes. Silence has a deadline.' },
+  { who: 'Freelancer', what: 'Deliver, one milestone at a time', text: 'The client approves, asks for changes or disputes. Inaction has explicit rules, but submitted work can remain locked if both parties stop responding.' },
   { who: 'Freelancer', what: 'Withdraw', text: 'Approved money is credited, then withdrawn to any address the freelancer chooses.' },
 ]
 const GUARANTEES = [
   ['No admin key', 'There is no owner, pause switch or upgrade path. Nobody can move the money except by the rules.'],
-  ['Losses are bounded', 'A bad ruling costs one milestone. The client can end the agreement after the current one.'],
-  ['Every stuck state has a deadline', 'When someone goes silent, anyone can trigger the next step once the time is up.'],
+  ['Milestone-scoped rulings', 'An arbiter allocates only the current milestone. The client can end the agreement and refund future milestones.'],
+  ['Most inactivity has a timeout', 'Anyone can trigger defined timeout actions, but a Submitted milestone remains locked if both parties do nothing.'],
   ['You pull your own money', 'Payments are credited first and withdrawn by their owner, so one failed transfer blocks no one else.'],
 ]
 

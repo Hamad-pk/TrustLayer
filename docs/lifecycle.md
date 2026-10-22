@@ -40,7 +40,7 @@ A timeout settles the current milestone as a full refund to the client and incre
 | `FALLBACK_WINDOW` | the next 14 days |
 | `MAX_MILESTONES` | 20 |
 
-Boundary: normal action requires `block.timestamp < deadline`. Timeout or escalation requires `block.timestamp >= deadline`.
+Deadline-specific actions use strict boundaries: `submit` and `requestRevision` require `block.timestamp < deadline`; `expireFreelancerWindow` and freelancer escalation from `Submitted` require `block.timestamp >= deadline`. `openDispute` from `RevisionRequested` is allowed at any time, so it races with the timeout once the revision deadline arrives.
 
 ## Agreement lifecycle
 
