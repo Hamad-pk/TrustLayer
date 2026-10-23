@@ -6,6 +6,10 @@
 [![Solidity](https://img.shields.io/badge/Solidity-0.8.28-blue)](https://docs.soliditylang.org/)
 [![Network](https://img.shields.io/badge/Network-Sepolia-orange)](https://sepolia.etherscan.io/address/0x6A348ebd89B3C8fB63E1CcAb4f2F84DB360f9299#code)
 
+🌐 **Live dApp:** [Try TrustLayer](https://trustlayer3.netlify.app/)
+
+🔗 **Verified Sepolia Contract:** [View on Etherscan](https://sepolia.etherscan.io/address/0x6A348ebd89B3C8fB63E1CcAb4f2F84DB360f9299#code)
+
 > **Security notice:** TrustLayer is an unaudited portfolio project. It has not received an independent security audit or formal verification. Do not use it to hold real funds.
 
 ## Overview
